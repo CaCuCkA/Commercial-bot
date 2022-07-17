@@ -1,6 +1,8 @@
 from dataclasses import dataclass
+from typing import List
 
 from environs import Env
+from sqlalchemy.engine import URL
 
 
 @dataclass
@@ -9,13 +11,26 @@ class DbConfig:
     password: str
     user: str
     database: str
+    port: int = 5432
+
+    def construct_sqlalchemy_url(self) -> URL:
+        return URL.create(
+            drivername="postgresql+asyncpg",
+            username=self.user,
+            password=self.password,
+            host=self.host,
+            database=self.database,
+            port=self.port
+        )
 
 
 @dataclass
 class TgBot:
     token: str
-    admin_ids: list[int]
+    admin_ids: List[int]
+    amount_of_referrals: int
     use_redis: bool
+    channel_ids: List[int]
 
 
 @dataclass
@@ -24,10 +39,16 @@ class Miscellaneous:
 
 
 @dataclass
+class Payments:
+    wayforpay_secret_key: str
+
+
+@dataclass
 class Config:
     tg_bot: TgBot
     db: DbConfig
     misc: Miscellaneous
+    payments: Payments
 
 
 def load_config(path: str = None):
@@ -38,6 +59,8 @@ def load_config(path: str = None):
         tg_bot=TgBot(
             token=env.str("BOT_TOKEN"),
             admin_ids=list(map(int, env.list("ADMINS"))),
+            channel_ids=list(map(int, env.list("CHANNELS"))),
+            amount_of_referrals=env.int("AMOUNT_OF_REFERRALS"),
             use_redis=env.bool("USE_REDIS"),
         ),
         db=DbConfig(
@@ -46,5 +69,8 @@ def load_config(path: str = None):
             user=env.str('DB_USER'),
             database=env.str('DB_NAME')
         ),
-        misc=Miscellaneous()
+        misc=Miscellaneous(),
+        payments=Payments(
+            wayforpay_secret_key=env.str("MERCHANT_KEY")
+        )
     )
